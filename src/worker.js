@@ -378,6 +378,8 @@ function giftFields(b) {
 async function saveGift(request, env, l, giftId) {
   const f = giftFields(await readJson(request));
   if (f.error) return fail(400, f.error);
+  // Le champ « Pour qui » n'a de sens que pour Noël.
+  const recipient = l.event_type === 'christmas' ? f.recipient : null;
   if (!giftId) {
     const id = crypto.randomUUID();
     await env.DB.prepare(
@@ -390,8 +392,6 @@ async function saveGift(request, env, l, giftId) {
     await touchList(env, l.id);
     return json({ id }, 201);
   }
-  // Le champ « Pour qui » n'a de sens que pour Noël.
-  const recipient = l.event_type === 'christmas' ? f.recipient : null;
   const booked = await env.DB.prepare(
     'SELECT COALESCE(SUM(quantity), 0) AS n FROM reservations WHERE gift_id = ?1 AND cancelled_at IS NULL'
   )
