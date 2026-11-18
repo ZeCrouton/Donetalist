@@ -6,10 +6,16 @@ $ErrorActionPreference = 'Stop'
 Set-Location -Path $PSScriptRoot
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 
-function Run($cmd) {
+function Run($cmd, [switch]$Strict) {
   Write-Host ">> $cmd" -ForegroundColor Cyan
-  $out = Invoke-Expression "$cmd 2>&1" | Out-String
+  # Wrangler ecrit des avertissements sur stderr : on ne doit pas les traiter comme des erreurs.
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  $out = Invoke-Expression "$cmd 2>&1" | ForEach-Object { "$_" } | Out-String
+  $code = $LASTEXITCODE
+  $ErrorActionPreference = $prev
   Write-Host $out
+  if ($Strict -and $code -ne 0) { throw "La commande a echoue (code $code) : $cmd" }
   return $out
 }
 
@@ -51,8 +57,8 @@ if ($t -match 'REMPLACER_PAR_VOTRE_ID') {
 }
 
 # 4. Schema (CREATE TABLE IF NOT EXISTS : sans danger si deja applique)
-Run "npx wrangler d1 execute donetalist --remote --file=schema.sql" | Out-Null
+Run "npx wrangler d1 execute donetalist --remote --file=schema.sql" -Strict | Out-Null
 
 # 5. Deploiement
-$res = Run "npx wrangler deploy"
+$res = Run "npx wrangler deploy" -Strict
 if ($res -match 'https://\S+\.workers\.dev') { Write-Host "`nSite en ligne : $($Matches[0])" -ForegroundColor Green }
