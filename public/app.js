@@ -162,9 +162,20 @@ async function route() {
     if (state.adminToken !== m[2]) { state.adminToken = m[2]; state.reveal = false; }
     return await admin(m[2]);
   } catch (e) {
+    const gone = e.status === 404 || e.status === 401;
+    let msg = e.message;
+    if (gone && m) {
+      // Liste supprimée (peut-être depuis un autre appareil) : on la retire de « Mes listes ».
+      const all = store.get('noel.lists', []);
+      const rest = all.filter((l) => (m[1] === 'a' ? l.admin : l.share) !== m[2]);
+      if (rest.length !== all.length) {
+        store.set('noel.lists', rest);
+        msg = 'Cette liste n’existe plus : elle a sans doute été supprimée depuis un autre appareil. Elle a été retirée de « Mes listes ».';
+      }
+    }
     app.replaceChildren(h('div', { class: 'wrap center' },
-      h('h1', null, e.status === 404 || e.status === 401 ? 'Lien introuvable' : 'Oups'),
-      h('p', null, e.message),
+      h('h1', null, gone ? 'Liste introuvable' : 'Oups'),
+      h('p', null, msg),
       h('a', { class: 'btn', href: '#/' }, 'Retour à l’accueil')));
   }
 }
@@ -242,6 +253,19 @@ function home() {
         h('p', { class: 'muted' }, 'Vous avez déjà créé une liste, sur un autre appareil par exemple ? Collez ici son lien d’administration pour la retrouver et la gérer.'),
         openForm),
       mine.length ? h('section', { class: 'mine' }, h('h2', null, 'Mes listes'), h('ul', null, mine.map((l) => h('li', null, h('span', null, l.title), h('a', { class: 'btn ghost small', href: `#/a/${l.admin}` }, 'Gérer'))))) : null));
+  pruneDeadLists(mine);
+}
+
+// Retire de « Mes listes » celles qui n'existent plus sur le serveur (supprimées depuis un autre appareil).
+async function pruneDeadLists(mine) {
+  if (!mine.length) return;
+  const gone = new Set();
+  await Promise.all(mine.map(async (l) => {
+    try { await api('/lists/' + l.share); } catch (e) { if (e.status === 404) gone.add(l.admin); }
+  }));
+  if (!gone.size) return;
+  store.set('noel.lists', store.get('noel.lists', []).filter((l) => !gone.has(l.admin)));
+  if (!location.hash || location.hash === '#/' || location.hash === '#') home();
 }
 
 // ---------- Vue visiteur ----------
