@@ -1,0 +1,286 @@
+/* ==========================================================================
+   Donetalist : styles
+   Chaque type d'événement définit ses couleurs (jetons --btn, --link, --danger…)
+   et son décor (bandeau, étiquettes, cadres). Les contrastes sont vérifiés :
+   texte de bouton ≥ 4,5:1 sur sa couleur, liens et textes ≥ 4,5:1 sur fond clair.
+   ========================================================================== */
+
+/* ---- Socle commun (thème Noël par défaut) ---- */
+:root {
+  --papier: #f4f0e6; --carte: #fffdf8; --encre: #1d241f; --doux: #5d675f; --trait: #dcd5c3;
+  --btn: #86283a; --btn-hover: #6c1f2e; --link: #1e5a3f; --danger: #86283a; --or: #bf9433;
+  --band-ink: #f7f2e4; --band-sub: #d7d2bf; --band-brand: #e9dfc2;
+  --acc1: #a8243a; --acc2: #bf9433; --acc3: #1f3a5f; --acc4: #2d6a4a;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --display: var(--serif);
+  --radius-btn: 10px;
+  --radius-pic: 6px;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--papier); color: var(--encre); font: 400 1.0625rem/1.55 var(--sans); }
+h1, h2, h3 { font-family: var(--display); font-weight: 700; line-height: 1.15; margin: 0; }
+a { color: var(--link); }
+:focus-visible { outline: 3px solid var(--or); outline-offset: 2px; border-radius: 4px; }
+.wrap { width: min(1080px, 100% - 2.5rem); margin-inline: auto; }
+ul { list-style: none; margin: 0; padding: 0; }
+
+/* ---- En-tête et navigation ---- */
+.band { position: relative; background: linear-gradient(180deg, #0e3224 0%, #123a2a 55%, #17462f 100%); color: var(--band-ink); padding: 1.1rem 0 2.2rem; }
+.topbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1.6rem; flex-wrap: wrap; }
+.brand { color: var(--band-brand); text-decoration: none; font: 700 1rem var(--sans); }
+.band .btn.navbtn { min-height: 40px; padding: .4rem 1rem; font-size: .95rem; background: transparent; color: var(--band-ink); box-shadow: inset 0 0 0 2px currentColor; }
+.band .btn.navbtn:hover { background: rgba(255,255,255,.14); }
+.band h1 { font-size: clamp(2rem, 6vw, 3.4rem); max-width: 18ch; }
+.band p { margin: .8rem 0 0; max-width: 52ch; color: var(--band-sub); }
+.ev-icon { display: inline-block; font-size: 2rem; line-height: 1; margin-bottom: .6rem; }
+.progress { margin-top: 1.4rem; max-width: 420px; }
+.progress .bar { height: 10px; border-radius: 99px; background: rgba(127,127,127,.25); overflow: hidden; }
+.progress .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--or), color-mix(in srgb, var(--or) 60%, #fff)); border-radius: 99px; transition: width .5s ease; }
+.progress small { display: block; margin-top: .4rem; color: var(--band-sub); }
+
+/* ---- Boutons et champs ---- */
+.btn { appearance: none; border: 0; cursor: pointer; font: 600 1rem var(--sans); padding: .8rem 1.3rem; min-height: 46px;
+  border-radius: var(--radius-btn); background: var(--btn); color: #fff; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: .4rem; }
+.btn:hover { background: var(--btn-hover); }
+.btn:disabled { opacity: .6; cursor: wait; }
+.btn.ghost { background: transparent; color: var(--link); box-shadow: inset 0 0 0 2px var(--link); }
+.btn.ghost:hover { background: color-mix(in srgb, var(--link) 8%, transparent); }
+.btn.small { min-height: 38px; padding: .45rem .9rem; font-size: .95rem; }
+.btn.danger { color: var(--danger); }
+.btn.ghost.danger { box-shadow: inset 0 0 0 2px var(--danger); }
+.fld { display: grid; gap: .3rem; margin-bottom: 1rem; }
+.fld span { font-weight: 600; }
+.fld small { color: var(--doux); }
+input, textarea { font: inherit; width: 100%; padding: .7rem .8rem; border: 2px solid var(--trait); border-radius: 10px; background: #fff; color: #1d241f; }
+input:focus, textarea:focus { border-color: var(--link); outline: none; box-shadow: 0 0 0 3px rgba(191,148,51,.35); }
+input[type=checkbox] { width: 1.3rem; height: 1.3rem; accent-color: var(--link); flex: none; }
+input:disabled + span { opacity: .55; }
+.row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
+.row.end { justify-content: flex-end; }
+.err { color: var(--danger); font-weight: 600; margin: 0 0 .8rem; min-height: 0; }
+.err:empty { display: none; }
+
+/* ---- Accueil ---- */
+.home { padding: 1.6rem 0 3rem; }
+.panel { background: var(--carte); border-radius: 14px; padding: 1.4rem; margin-top: -1.2rem; border-top: 5px solid var(--or);
+  box-shadow: 0 1px 0 var(--trait), 0 12px 30px -18px rgba(0,0,0,.35); }
+.mine { margin-top: 2rem; }
+.mine h2 { font-size: 1.3rem; margin-bottom: .8rem; }
+.mine li { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .7rem 0; border-top: 1px solid var(--trait); }
+.event-picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .65rem; margin: 1.2rem 0 1.4rem; }
+.event-choice { appearance: none; min-height: 100px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: .35rem;
+  border: 2px solid var(--trait); border-radius: 13px; background: var(--carte); color: var(--encre); cursor: pointer; font: inherit; transition: border-color .15s, transform .15s, background .15s; }
+.event-choice:hover { transform: translateY(-2px); border-color: var(--or); }
+.event-choice.selected { border-color: var(--link); background: color-mix(in srgb, var(--or) 14%, var(--carte)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--link) 15%, transparent); }
+.event-icon { font-size: 1.8rem; line-height: 1.2; }
+.event-choice b { font-size: .94rem; }
+.event-fields { padding-top: .2rem; }
+.event-hint, .muted { color: var(--doux); font-size: .95rem; }
+.toast-ok { font-weight: 600; }
+@media (max-width: 560px) { .event-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); } .event-choice { min-height: 88px; } }
+
+/* ---- Notices ---- */
+.notice { background: color-mix(in srgb, var(--or) 18%, #fff); color: var(--encre); border-left: 5px solid var(--or); border-radius: 10px; padding: .8rem 1rem; margin: 1.4rem 0 0; }
+.center { text-align: center; padding: 4rem 0; }
+
+/* ---- Grille d'étiquettes (cadeaux) ---- */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.6rem 1.2rem; padding: 2.2rem 0 3rem; }
+.tag { position: relative; background: var(--carte); border-radius: 8px; padding-top: 2.2rem; display: flex; flex-direction: column;
+  border-top: 6px solid var(--acc, var(--or)); box-shadow: 0 1px 0 var(--trait), 0 14px 26px -20px rgba(0,0,0,.45); }
+.tag:nth-child(4n+1) { --acc: var(--acc1); }
+.tag:nth-child(4n+2) { --acc: var(--acc2); }
+.tag:nth-child(4n+3) { --acc: var(--acc3); }
+.tag:nth-child(4n+4) { --acc: var(--acc4); }
+.tag.done { --acc: #9a9485; }
+.tag::before { content: ""; position: absolute; top: .7rem; left: 50%; width: 15px; height: 15px; margin-left: -7px; border-radius: 50%;
+  background: var(--papier); box-shadow: inset 0 1px 2px rgba(0,0,0,.35); }
+.tag::after { content: ""; position: absolute; top: 0; left: 50%; width: 2px; height: .95rem; background: var(--acc, var(--or)); }
+.tag .pic { margin: 0 .8rem; aspect-ratio: 4/3; border-radius: var(--radius-pic); overflow: hidden; display: grid; place-items: center; font-size: 2.4rem;
+  background: color-mix(in srgb, var(--acc, #bf9433) 16%, #fffdf8); }
+.tag .pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tag .body { padding: .9rem 1rem 1.1rem; display: flex; flex-direction: column; gap: .35rem; flex: 1; }
+.tag h3 { font-size: 1.2rem; }
+.price { margin: 0; font-weight: 600; color: var(--link); }
+.desc { margin: 0; color: var(--doux); font-size: .98rem; }
+.shop { font-size: .95rem; }
+.qty { margin: 0; font-size: .95rem; color: var(--doux); }
+.who { font-size: .95rem; display: flex; flex-wrap: wrap; gap: .3rem .6rem; align-items: center; margin: 0; }
+.who b { color: var(--danger); }
+.for { margin: 0; font-size: .95rem; color: var(--doux); }
+.for b { color: var(--link); font-weight: 700; }
+.tag .act { margin-top: auto; padding-top: .7rem; }
+.tag.done .pic { filter: grayscale(.85); opacity: .5; }
+.tag.done h3, .tag.done .price { color: var(--doux); }
+.stamp { position: absolute; top: 5.2rem; left: 50%; transform: translateX(-50%) rotate(-9deg); border: 3px solid var(--danger); color: var(--danger);
+  font: 700 1.5rem var(--display); padding: .15rem .8rem; border-radius: 6px; background: rgba(255,253,248,.92); pointer-events: none; }
+.tag.just .stamp { animation: stamp .4s cubic-bezier(.2,1.4,.4,1); }
+@keyframes stamp { from { transform: translateX(-50%) rotate(-9deg) scale(2); opacity: 0; } to { transform: translateX(-50%) rotate(-9deg) scale(1); opacity: 1; } }
+.filters { display: flex; flex-wrap: wrap; gap: .5rem; padding-top: 1.8rem; }
+.fchip { font: 600 .95rem var(--sans); min-height: 40px; padding: .4rem 1rem; border-radius: 99px; cursor: pointer; background: transparent; color: var(--link); border: 2px solid var(--trait); }
+.fchip[aria-pressed="true"] { background: var(--btn); border-color: var(--btn); color: #fff; }
+.filters + .grid { padding-top: 1.2rem; }
+
+/* ---- Administration ---- */
+.admin { padding: 1.6rem 0 3rem; display: grid; gap: 1.2rem; }
+.admin h2 { font-size: 1.35rem; margin-bottom: .7rem; }
+.card { background: var(--carte); border-radius: 14px; padding: 1.2rem 1.3rem; box-shadow: 0 1px 0 var(--trait); border-left: 6px solid var(--or); }
+.linkbox { display: flex; gap: .5rem; flex-wrap: wrap; }
+.linkbox input { flex: 1 1 260px; }
+.opt { display: flex; gap: .7rem; align-items: flex-start; padding: .55rem 0; }
+.opt small { display: block; color: var(--doux); }
+.agift { display: grid; grid-template-columns: 64px 1fr; gap: .9rem; padding: .9rem 0; border-top: 1px solid var(--trait); }
+.agift .pic { width: 64px; height: 64px; border-radius: 8px; background: #ebe4d0; display: grid; place-items: center; font-size: 1.6rem; overflow: hidden; }
+.agift .pic img { width: 100%; height: 100%; object-fit: cover; }
+.agift h3 { font-size: 1.1rem; }
+.agift .meta { color: var(--doux); font-size: .95rem; margin: .1rem 0 .5rem; }
+.chip { display: inline-block; padding: .15rem .6rem; border-radius: 99px; font-size: .88rem; font-weight: 600; background: color-mix(in srgb, var(--link) 12%, #fff); color: var(--link); }
+.chip.warn { background: color-mix(in srgb, var(--danger) 12%, #fff); color: var(--danger); }
+
+/* ---- Fenêtres et notifications ---- */
+dialog { border: 0; border-radius: 16px; padding: 1.4rem; width: min(460px, 100% - 1.5rem); background: var(--carte); color: var(--encre); box-shadow: 0 30px 80px rgba(0,0,0,.35); }
+dialog::backdrop { background: rgba(18,40,30,.55); }
+dialog h2 { font-size: 1.4rem; margin-bottom: 1rem; }
+#toast { position: fixed; left: 50%; bottom: 1.2rem; transform: translate(-50%, 140%); background: var(--btn); color: #fff; padding: .8rem 1.2rem;
+  border-radius: 10px; transition: transform .3s ease; max-width: calc(100% - 2rem); z-index: 10; }
+#toast.on { transform: translate(-50%, 0); }
+
+.foot { padding: 1rem 0 2rem; font-size: .92rem; color: var(--doux); }
+.legal { padding: 1.6rem 0 3rem; max-width: 70ch; }
+.legal h2 { font-size: 1.3rem; margin: 1.8rem 0 .5rem; }
+.legal p, .legal li { margin: .4rem 0; }
+.legal ul { list-style: disc; padding-left: 1.3rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* ==========================================================================
+   Thème NOËL : bandeau sapin, guirlande de lumières, étiquettes à œillet
+   ========================================================================== */
+:root[data-theme="christmas"] {
+  --papier: #f4f0e6; --carte: #fffdf8; --encre: #1d241f; --doux: #5d675f; --trait: #dcd5c3;
+  --btn: #86283a; --btn-hover: #6c1f2e; --link: #1e5a3f; --danger: #86283a; --or: #bf9433;
+  --band-ink: #f7f2e4; --band-sub: #d7d2bf; --band-brand: #e9dfc2;
+  --acc1: #a8243a; --acc2: #bf9433; --acc3: #1f3a5f; --acc4: #2d6a4a;
+}
+:root[data-theme="christmas"] .band::after { content: ""; position: absolute; left: 0; right: 0; bottom: -10px; height: 20px; pointer-events: none; z-index: 1;
+  background:
+    radial-gradient(circle at 12px 10px, #a8243a 0 6px, transparent 7px) 0 0 / 96px 20px repeat-x,
+    radial-gradient(circle at 36px 10px, #bf9433 0 6px, transparent 7px) 0 0 / 96px 20px repeat-x,
+    radial-gradient(circle at 60px 10px, #5b8fd0 0 6px, transparent 7px) 0 0 / 96px 20px repeat-x,
+    radial-gradient(circle at 84px 10px, #3c8a5e 0 6px, transparent 7px) 0 0 / 96px 20px repeat-x; }
+
+/* ==========================================================================
+   Thème ANNIVERSAIRE : confettis, boutons en pilule, typographie ronde
+   ========================================================================== */
+:root[data-theme="birthday"] {
+  --papier: #fdf3f6; --carte: #fffdfd; --encre: #2e2430; --doux: #6e5f6b; --trait: #eed9e2;
+  --btn: #8a4a72; --btn-hover: #6f3a5b; --link: #7d3f68; --danger: #9c3046; --or: #f0a33b;
+  --band-ink: #fff8fb; --band-sub: #f6dbe8; --band-brand: #ffe9c2;
+  --acc1: #e0476f; --acc2: #f0a33b; --acc3: #3aa6b9; --acc4: #7b5ea7;
+  --display: ui-rounded, "SF Pro Rounded", "Nunito", "Arial Rounded MT Bold", var(--sans);
+  --radius-btn: 999px; --radius-pic: 18px;
+}
+:root[data-theme="birthday"] .band { background: linear-gradient(135deg, #5e2f57 0%, #8a4a72 55%, #b5577f 100%); }
+:root[data-theme="birthday"] .band::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(circle, #f0a33b 0 4px, transparent 5px) 8% 18% / 120px 90px,
+    radial-gradient(circle, #3aa6b9 0 4px, transparent 5px) 34% 62% / 150px 110px,
+    radial-gradient(circle, #ffd166 0 3px, transparent 4px) 62% 22% / 110px 80px,
+    radial-gradient(circle, #7ed6a4 0 4px, transparent 5px) 88% 70% / 140px 100px,
+    radial-gradient(circle, #ffffff 0 3px, transparent 4px) 20% 80% / 90px 70px;
+  opacity: .55; }
+:root[data-theme="birthday"] .band h1 { font-weight: 800; }
+:root[data-theme="birthday"] .tag { border-radius: 18px; }
+:root[data-theme="birthday"] .tag::before { background: #fff; box-shadow: 0 0 0 3px var(--acc); }
+:root[data-theme="birthday"] .stamp { border-radius: 999px; padding: .1rem 1rem; }
+:root[data-theme="birthday"] .panel { border-top-color: #f0a33b; }
+:root[data-theme="birthday"] .notice { border-left-color: #e0476f; }
+
+/* ==========================================================================
+   Thème MARIAGE : ivoire, cadre or, arches, typographie italique
+   ========================================================================== */
+:root[data-theme="wedding"] {
+  --papier: #f7f3ea; --carte: #fffdf8; --encre: #2f2b22; --doux: #6e6755; --trait: #e4d9c1;
+  --btn: #6d6447; --btn-hover: #574f37; --link: #6d6447; --danger: #7a5a2c; --or: #b8975a;
+  --band-ink: #3a3224; --band-sub: #6e6555; --band-brand: #6d6447;
+  --acc1: #b8975a; --acc2: #9a8466; --acc3: #c7ae82; --acc4: #8c7a5b;
+  --display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --radius-btn: 2px; --radius-pic: 999px 999px 6px 6px / 42% 42% 6px 6px;
+}
+:root[data-theme="wedding"] h1, :root[data-theme="wedding"] h2, :root[data-theme="wedding"] h3 { font-style: italic; font-weight: 500; }
+:root[data-theme="wedding"] .band { background: linear-gradient(180deg, #f9f5ec, #efe6d3); }
+:root[data-theme="wedding"] .band::before { content: ""; position: absolute; inset: 12px; border: 1px solid #b8975a; pointer-events: none; }
+:root[data-theme="wedding"] .band::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 10px;
+  background: repeating-linear-gradient(90deg, #b8975a 0 1px, transparent 1px 14px); opacity: .7; }
+:root[data-theme="wedding"] .brand, :root[data-theme="wedding"] .band .btn.navbtn { letter-spacing: .08em; text-transform: uppercase; font-size: .85rem; }
+:root[data-theme="wedding"] .band .btn.navbtn { box-shadow: inset 0 0 0 1px #6d6447; }
+:root[data-theme="wedding"] .tag { border-top: 0; box-shadow: inset 0 0 0 1px var(--or), 0 14px 26px -22px rgba(60,50,20,.55); padding-top: 2.4rem; }
+:root[data-theme="wedding"] .tag::before { background: transparent; box-shadow: none; border: 2px solid #b8975a; width: 12px; height: 12px; margin-left: -6px; }
+:root[data-theme="wedding"] .tag::after { background: #b8975a; width: 1px; }
+:root[data-theme="wedding"] .tag .pic { background: #f3ecdb; }
+:root[data-theme="wedding"] .stamp { border-radius: 0; font-style: italic; }
+:root[data-theme="wedding"] .panel { border-top: 1px solid var(--or); }
+:root[data-theme="wedding"] .card { border-left: 1px solid var(--or); }
+:root[data-theme="wedding"] .notice { border-left-width: 1px; border-top: 1px solid var(--or); border-bottom: 1px solid var(--or); border-radius: 0; }
+
+/* ==========================================================================
+   Thème NAISSANCE : menthe pastel, nuages, étoiles, pilules douces
+   ========================================================================== */
+:root[data-theme="birth"] {
+  --papier: #f2f7f6; --carte: #fffefd; --encre: #27332f; --doux: #5b6b65; --trait: #d3e4de;
+  --btn: #3c6a60; --btn-hover: #2e5249; --link: #3c6a60; --danger: #8a4a52; --or: #d9b98b;
+  --band-ink: #1f3530; --band-sub: #3f5e56; --band-brand: #2e5249;
+  --acc1: #7fb6cc; --acc2: #a9d4bd; --acc3: #e6c5d2; --acc4: #c3b3e3;
+  --display: ui-rounded, "SF Pro Rounded", "Nunito", var(--serif);
+  --radius-btn: 999px; --radius-pic: 22px;
+}
+:root[data-theme="birth"] .band { background: linear-gradient(180deg, #cfe9e2 0%, #e4f3ee 100%); }
+:root[data-theme="birth"] .band::after { content: ""; position: absolute; left: -2%; right: -2%; bottom: -14px; height: 30px; pointer-events: none;
+  background: radial-gradient(circle at 30px 30px, #f2f7f6 0 22px, transparent 23px) 0 0 / 60px 30px repeat-x; }
+:root[data-theme="birth"] .band h1 { font-weight: 800; }
+:root[data-theme="birth"] .tag { border-radius: 22px; border-top-width: 0; box-shadow: 0 1px 0 var(--trait), 0 14px 26px -22px rgba(40,70,60,.5); }
+:root[data-theme="birth"] .tag::before { width: 14px; height: 14px; border-radius: 0; background: var(--acc);
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); box-shadow: none; margin-left: -7px; }
+:root[data-theme="birth"] .tag::after { display: none; }
+:root[data-theme="birth"] .stamp { border-radius: 999px; }
+:root[data-theme="birth"] .notice { border-left-color: var(--acc1); }
+
+/* ==========================================================================
+   Thème BAPTÊME : lumière dorée, rayons, cadres en arche, halos
+   ========================================================================== */
+:root[data-theme="baptism"] {
+  --papier: #f8f6ef; --carte: #fffefa; --encre: #2d3229; --doux: #646a5c; --trait: #e3dfcc;
+  --btn: #4f6b58; --btn-hover: #3f5846; --link: #4f6b58; --danger: #7a6a3e; --or: #c9a85c;
+  --band-ink: #2b3327; --band-sub: #4d5545; --band-brand: #4f6b58;
+  --acc1: #d9c27e; --acc2: #aebfa6; --acc3: #c9d3dd; --acc4: #e6d7b0;
+  --display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --radius-btn: 8px; --radius-pic: 999px 999px 10px 10px / 30% 30% 10px 10px;
+}
+:root[data-theme="baptism"] .band { background: radial-gradient(ellipse at 50% -10%, #fffdf2 0%, #f1ead2 50%, #e3dbbd 100%); overflow: hidden; }
+:root[data-theme="baptism"] .band::before { content: ""; position: absolute; left: 50%; top: -40%; width: 160%; height: 180%; margin-left: -80%; pointer-events: none;
+  background: repeating-conic-gradient(from 0deg, rgba(201,168,92,.16) 0 4deg, transparent 4deg 16deg); }
+:root[data-theme="baptism"] .band::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 14px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, #c9a85c 50%, transparent); opacity: .8; }
+:root[data-theme="baptism"] .band h1 { font-weight: 500; font-style: italic; }
+:root[data-theme="baptism"] .tag { border-top-width: 0; padding-top: 2.2rem; box-shadow: 0 1px 0 var(--trait), 0 14px 26px -22px rgba(60,60,40,.45); }
+:root[data-theme="baptism"] .tag::before { background: #fff; box-shadow: 0 0 0 3px var(--acc), 0 0 14px 4px rgba(217,194,126,.55); }
+:root[data-theme="baptism"] .tag::after { background: linear-gradient(#c9a85c, transparent); width: 1px; }
+:root[data-theme="baptism"] .tag .pic { background: #f5f0de; }
+:root[data-theme="baptism"] .stamp { font-style: italic; }
+:root[data-theme="baptism"] .panel { border-top-color: #c9a85c; }
+:root[data-theme="baptism"] .card { border-left-color: #c9a85c; }
+
+/* ==========================================================================
+   Thème AUTRE ÉVÉNEMENT : sobre, taupe
+   ========================================================================== */
+:root[data-theme="custom"] {
+  --papier: #f4f1ec; --carte: #fffefa; --encre: #302d29; --doux: #6f6962; --trait: #e3ddd4;
+  --btn: #5f5548; --btn-hover: #4d443a; --link: #5f5548; --danger: #6b4a3c; --or: #b6a38c;
+  --band-ink: #f7f3ea; --band-sub: #e3dccf; --band-brand: #efe8dc;
+  --acc1: #8e7f70; --acc2: #b6a38c; --acc3: #6f6559; --acc4: #a39482;
+}
+:root[data-theme="custom"] .band { background: linear-gradient(135deg, #514b44, #82766a); }
+:root[data-theme="custom"] .tag::before { background: var(--papier); }
