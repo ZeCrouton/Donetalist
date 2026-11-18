@@ -107,6 +107,9 @@ async function route(request, env, u) {
     return reserve(request, env, x[1], x[2]);
   if (p === '/api/reservations/cancel' && m === 'POST') return cancelOwn(request, env);
 
+  // ---- Récupération (réservée à l'administrateur du site, secret RECOVERY_KEY) ----
+  if ((x = p.match(/^\/api\/recover\/([\w-]+)$/)) && m === 'GET') return recoverLink(request, env, x[1]);
+
   // ---- Administration (jeton dans l'en-tête X-Admin-Token) ----
   if (p.startsWith('/api/admin')) {
     const list = await adminList(request, env);
@@ -128,6 +131,29 @@ async function route(request, env, u) {
 
 // ---------- Listes ----------
 
+// Récupération : le lien d'administration est aussi conservé chiffré (AES-GCM), déchiffrable
+// uniquement avec le secret RECOVERY_KEY du Worker.
+async function recoveryKey(env) {
+  if (!env.RECOVERY_KEY) return null;
+  const raw = await crypto.subtle.digest('SHA-256', enc.encode(env.RECOVERY_KEY));
+  return crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
+}
+const toB64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
+const fromB64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+async function sealAdmin(env, admin) {
+  const key = await recoveryKey(env);
+  if (!key) return null;
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(admin));
+  return toB64(iv) + '.' + toB64(ct);
+}
+async function openAdmin(env, sealed) {
+  const key = await recoveryKey(env);
+  const [iv, ct] = sealed.split('.');
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromB64(iv) }, key, fromB64(ct));
+  return new TextDecoder().decode(pt);
+}
+
 async function createList(request, env) {
   if (await limited(request, env, 'create', 5, 3600)) return tooMany();
   const b = await readJson(request);
@@ -146,10 +172,11 @@ async function createList(request, env) {
   const share = token();
   const admin = token();
   const t = now();
+  const sealed = await sealAdmin(env, admin);
   await env.DB.prepare(
-    'INSERT INTO lists (id, title, event_type, event_name, event_second_name, event_date, share_token, admin_token_hash, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)'
+    'INSERT INTO lists (id, title, event_type, event_name, event_second_name, event_date, share_token, admin_token_hash, admin_token_enc, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10)'
   )
-    .bind(crypto.randomUUID(), title, event_type, event_name || null, event_second_name || null, event_date, share, await sha(admin), t)
+    .bind(crypto.randomUUID(), title, event_type, event_name || null, event_second_name || null, event_date, share, await sha(admin), sealed, t)
     .run();
   return json({ share_token: share, admin_token: admin }, 201);
 }
@@ -276,6 +303,15 @@ async function cancelOwn(request, env) {
 }
 
 // ---------- Administration ----------
+
+async function recoverLink(request, env, share) {
+  const given = request.headers.get('x-recovery-key') || '';
+  if (!env.RECOVERY_KEY || given !== env.RECOVERY_KEY) return fail(401, 'Accès refusé.');
+  const l = await env.DB.prepare('SELECT title, admin_token_enc FROM lists WHERE share_token = ?1').bind(share).first();
+  if (!l) return fail(404, 'Liste introuvable.');
+  if (!l.admin_token_enc) return fail(404, 'Cette liste a été créée avant l’activation de la récupération.');
+  return json({ title: l.title, admin_token: await openAdmin(env, l.admin_token_enc) });
+}
 
 async function adminList(request, env) {
   const t = request.headers.get('x-admin-token');

@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS lists (
   event_date TEXT,
   share_token TEXT NOT NULL UNIQUE,
   admin_token_hash TEXT NOT NULL UNIQUE,
+  admin_token_enc TEXT,
   status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','closed')),
   surprise_mode INTEGER NOT NULL DEFAULT 1,
   show_reserver_names INTEGER NOT NULL DEFAULT 0,
