@@ -63,6 +63,26 @@ async function copy(text) {
   catch { window.prompt('Copiez ce lien :', text); }
 }
 
+// Boutons pour s'envoyer le lien d'administration (messagerie, WhatsApp, SMS, partage du téléphone).
+function sendAdminLink(title, url) {
+  const msg = `Mon lien d’administration Donetalist pour « ${title} ». Gardez-le : il permet de modifier la liste depuis n’importe quel appareil.`;
+  return h('div', { class: 'row' },
+    h('a', { class: 'btn small', href: 'mailto:?subject=' + encodeURIComponent('Mon lien Donetalist : ' + title) + '&body=' + encodeURIComponent(msg + '\n' + url) }, 'M’envoyer par e-mail'),
+    h('a', { class: 'btn ghost small', target: '_blank', rel: 'noopener', href: 'https://wa.me/?text=' + encodeURIComponent(msg + ' ' + url) }, 'WhatsApp'),
+    h('a', { class: 'btn ghost small', href: 'sms:?&body=' + encodeURIComponent(msg + ' ' + url) }, 'SMS'),
+    h('button', { class: 'btn ghost small', type: 'button', onclick: () => copy(url) }, 'Copier'),
+    navigator.share ? h('button', { class: 'btn ghost small', type: 'button', onclick: () => navigator.share({ title, text: msg, url }).catch(() => {}) }, 'Autres applications') : null);
+}
+
+// Ouvre une liste à partir d'un lien collé (lien d'administration ou de partage).
+function openByLink(value) {
+  const v = String(value || '').trim();
+  const m = v.match(/#\/(l|a)\/([\w-]{20,})/) || v.match(/^()([\w-]{20,})$/);
+  if (!m) return false;
+  location.hash = `#/${m[1] || 'a'}/${m[2]}`;
+  return true;
+}
+
 function formDialog({ title, fields, submit, onSubmit }) {
   const dlg = h('dialog');
   const err = h('p', { class: 'err', role: 'alert' });
@@ -205,11 +225,22 @@ function home() {
       location.hash = `#/a/${r.admin_token}`;
     } catch (x) { err.textContent = x.message; btn.disabled = false; }
   });
+  const openErr = h('p', { class: 'err', role: 'alert' });
+  const openInput = h('input', { type: 'text', inputmode: 'url', autocomplete: 'off', placeholder: 'Collez votre lien d’administration', 'aria-label': 'Lien d’administration à ouvrir' });
+  const openForm = h('form', { onsubmit: (e) => {
+    e.preventDefault();
+    openErr.textContent = openByLink(openInput.value) ? '' : 'Ce lien n’est pas valide. Collez le lien complet reçu à la création de la liste.';
+  } },
+    h('div', { class: 'linkbox' }, openInput, h('button', { class: 'btn', type: 'submit' }, 'Ouvrir')),
+    openErr);
   app.replaceChildren(
     h('header', { class: 'band' }, h('div', { class: 'wrap' }, topbar(),
       h('h1', null, 'Toutes vos envies, tous vos événements.'),
       h('p', null, 'Créez une liste de cadeaux et partagez-la avec vos proches en un simple lien. Ils réservent sans créer de compte.'))),
     h('main', { class: 'wrap home' }, h('section', { class: 'panel' }, form),
+      h('section', { class: 'mine' }, h('h2', null, 'Retrouver une liste'),
+        h('p', { class: 'muted' }, 'Vous avez déjà créé une liste, sur un autre appareil par exemple ? Collez ici son lien d’administration pour la retrouver et la gérer.'),
+        openForm),
       mine.length ? h('section', { class: 'mine' }, h('h2', null, 'Mes listes'), h('ul', null, mine.map((l) => h('li', null, h('span', null, l.title), h('a', { class: 'btn ghost small', href: `#/a/${l.admin}` }, 'Gérer'))))) : null));
 }
 
@@ -321,6 +352,9 @@ async function admin(token) {
   state.eventType = list.event_type;
   setTheme(list.event_type);
   document.title = `Gérer – ${list.title}`;
+  // Liste ouverte depuis un lien sur un autre appareil : on la mémorise ici dans « Mes listes ».
+  const known = store.get('noel.lists', []);
+  if (!known.some((l) => l.admin === token)) store.set('noel.lists', [{ title: list.title, admin: token, share: list.share_token }, ...known]);
   const link = shareUrl(list.share_token);
   const msg = `Voici ma liste de cadeaux pour ${list.title}. Vous pouvez y réserver un cadeau sans créer de compte :`;
   const patch = async (body) => {
@@ -361,6 +395,10 @@ async function admin(token) {
       h('p', null, list.status === 'closed' ? 'Liste clôturée : plus aucune réservation possible.' : 'Gérez vos cadeaux et partagez le lien avec vos proches.'),
       progress(summary.units_reserved, summary.units_wanted))),
     h('main', { class: 'wrap admin' },
+      h('div', { class: 'notice' },
+        h('b', null, 'Gardez votre lien d’administration. '),
+        'C’est le seul moyen de retrouver et modifier cette liste, notamment depuis un autre téléphone ou ordinateur. Envoyez-le-vous maintenant :',
+        sendAdminLink(list.title, adminUrl(token))),
       h('section', { class: 'card' }, h('h2', null, 'Partager la liste'),
         h('div', { class: 'linkbox' },
           h('input', { readonly: true, value: link, 'aria-label': 'Lien de partage', onfocus: (e) => e.target.select() }),
@@ -406,7 +444,7 @@ async function admin(token) {
           } catch (e) { toast(e.message); }
         } }, 'Supprimer définitivement la liste')),
       h('section', { class: 'card' }, h('h2', null, 'Votre lien d’administration'),
-        h('p', null, 'Ce lien est le seul moyen de modifier la liste : gardez-le précieusement et ne le partagez pas. Il est aussi mémorisé sur cet appareil, dans « Mes listes ».'),
+        h('p', null, 'Ce lien est le seul moyen de modifier la liste : gardez-le précieusement et ne le partagez pas. Il est mémorisé sur cet appareil, dans « Mes listes ». Pour la retrouver ailleurs, collez-le dans « Retrouver une liste » sur la page d’accueil.'),
         h('div', { class: 'linkbox' },
           h('input', { readonly: true, value: adminUrl(token), 'aria-label': 'Lien d’administration', onfocus: (e) => e.target.select() }),
           h('button', { class: 'btn ghost', onclick: () => copy(adminUrl(token)) }, 'Copier')))));
