@@ -8,12 +8,10 @@ $utf8 = New-Object System.Text.UTF8Encoding($false)
 
 function Run($cmd, [switch]$Strict) {
   Write-Host ">> $cmd" -ForegroundColor Cyan
-  # Wrangler ecrit des avertissements sur stderr : on ne doit pas les traiter comme des erreurs.
-  $prev = $ErrorActionPreference
-  $ErrorActionPreference = 'Continue'
-  $out = Invoke-Expression "$cmd 2>&1" | ForEach-Object { "$_" } | Out-String
+  # Passage par cmd.exe : stderr est fusionne avant PowerShell, donc les avertissements
+  # de wrangler ne deviennent jamais des erreurs PowerShell.
+  $out = (& cmd.exe /d /c "$cmd 2>&1" | Out-String)
   $code = $LASTEXITCODE
-  $ErrorActionPreference = $prev
   Write-Host $out
   if ($Strict -and $code -ne 0) { throw "La commande a echoue (code $code) : $cmd" }
   return $out
@@ -46,7 +44,7 @@ if ($t -match 'REMPLACER_PAR_VOTRE_ID') {
     if ($o -match 'database_id"?\s*[:=]\s*"([0-9a-fA-F-]{36})"') { $id = $Matches[1] }
   } catch { }
   if (-not $id) {
-    $json = (Invoke-Expression "npx wrangler d1 list --json 2>`$null" | Out-String)
+    $json = (& cmd.exe /d /c "npx wrangler d1 list --json 2>nul" | Out-String)
     $db = ($json | ConvertFrom-Json) | Where-Object { $_.name -eq 'donetalist' } | Select-Object -First 1
     if ($db) { $id = $db.uuid }
   }
