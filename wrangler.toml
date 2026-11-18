@@ -12,7 +12,7 @@ run_worker_first = ["/api/*"]
 [[d1_databases]]
 binding = "DB"
 database_name = "donetalist"
-database_id = "REMPLACER_PAR_VOTRE_ID"
+database_id = "cd3db091-d91b-4983-8ddf-935cd595ac51"
 
 # Purge quotidienne (3 h UTC) : listes sans activité depuis 18 mois, compteurs périmés.
 [triggers]
