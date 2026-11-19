@@ -89,6 +89,11 @@ async function purge(env) {
     env.DB.prepare('DELETE FROM lists WHERE updated_at < ?1').bind(stale),
     env.DB.prepare('DELETE FROM reservations WHERE cancelled_at IS NOT NULL AND cancelled_at < ?1').bind(month),
     env.DB.prepare('DELETE FROM rate_limits WHERE expires_at < ?1').bind(Date.now()),
+    env.DB.prepare('DELETE FROM gift_images WHERE list_id NOT IN (SELECT id FROM lists)'),
+    // Photos envoyées mais jamais enregistrées dans un cadeau (depuis plus d'un jour).
+    env.DB.prepare(
+      "DELETE FROM gift_images WHERE created_at < ?1 AND ('/api/img/' || id) NOT IN (SELECT image_url FROM gifts WHERE image_url IS NOT NULL)"
+    ).bind(new Date(Date.now() - 86400000).toISOString()),
   ]);
 }
 
@@ -106,6 +111,7 @@ async function route(request, env, u) {
   if ((x = p.match(/^\/api\/lists\/([\w-]+)\/gifts\/([\w-]+)\/reserve$/)) && m === 'POST')
     return reserve(request, env, x[1], x[2]);
   if (p === '/api/reservations/cancel' && m === 'POST') return cancelOwn(request, env);
+  if ((x = p.match(/^\/api\/img\/([\w-]{36})$/)) && m === 'GET') return serveImage(env, x[1]);
 
   // ---- Récupération (réservée à l'administrateur du site, secret RECOVERY_KEY) ----
   if ((x = p.match(/^\/api\/recover\/([\w-]+)$/)) && m === 'GET') return recoverLink(request, env, x[1]);
@@ -119,6 +125,7 @@ async function route(request, env, u) {
     if (p === '/api/admin' && m === 'PATCH') return patchList(request, env, list);
     if (p === '/api/admin' && m === 'DELETE') return deleteList(env, list);
     if (p === '/api/admin/preview' && m === 'GET') return preview(request, env, u);
+    if (p === '/api/admin/images' && m === 'POST') return uploadImage(request, env, list);
     if (p === '/api/admin/gifts' && m === 'POST') return saveGift(request, env, list, null);
     if ((x = p.match(/^\/api\/admin\/gifts\/([\w-]+)$/))) {
       if (m === 'PUT') return saveGift(request, env, list, x[1]);
@@ -236,6 +243,41 @@ async function preview(request, env, u) {
     reason: found ? null : 'Ce site ne permet pas la lecture automatique. Remplissez les champs à la main.',
   });
 }
+
+// ---------- Photos ajoutées par l'utilisateur (JPEG ≤ 300 Ko dans D1, gratuit) ----------
+const IMG_PATH = /^\/api\/img\/([\w-]{36})$/;
+async function uploadImage(request, env, l) {
+  if (await limited(request, env, 'upload', 40, 3600)) return tooMany();
+  const buf = new Uint8Array(await request.arrayBuffer());
+  if (!buf.length || buf.length > 300000) return fail(400, 'Photo trop lourde (300 Ko maximum après réduction).');
+  if (!(buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff)) return fail(400, 'Format de photo non pris en charge.');
+  const n = await env.DB.prepare('SELECT COUNT(*) AS n FROM gift_images WHERE list_id = ?1').bind(l.id).first();
+  if (n.n >= 80) return fail(400, 'Limite de photos atteinte pour cette liste.');
+  let bin = '';
+  for (let i = 0; i < buf.length; i += 8192) bin += String.fromCharCode(...buf.subarray(i, i + 8192));
+  const id = crypto.randomUUID();
+  await env.DB.prepare('INSERT INTO gift_images (id, list_id, data, created_at) VALUES (?1, ?2, ?3, ?4)')
+    .bind(id, l.id, btoa(bin), now()).run();
+  return json({ url: `/api/img/${id}` });
+}
+async function serveImage(env, id) {
+  const r = await env.DB.prepare('SELECT data FROM gift_images WHERE id = ?1').bind(id).first();
+  if (!r) return new Response('Introuvable', { status: 404 });
+  const bin = atob(r.data);
+  const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+  return new Response(bytes, {
+    headers: {
+      'content-type': 'image/jpeg',
+      'cache-control': 'public, max-age=31536000, immutable',
+      'x-content-type-options': 'nosniff',
+      'x-robots-tag': 'noindex, nofollow',
+    },
+  });
+}
+const dropImages = (env, url) => {
+  const m = typeof url === 'string' && url.match(IMG_PATH);
+  return m ? env.DB.prepare('DELETE FROM gift_images WHERE id = ?1').bind(m[1]) : null;
+};
 
 // ---------- Listes ----------
 
@@ -512,7 +554,7 @@ function giftFields(b) {
     name,
     description: clean(b.description, 500) || null,
     recipient: clean(b.recipient, 40) || null,
-    image_url: httpUrl(b.image_url),
+    image_url: IMG_PATH.test(clean(b.image_url, 100)) ? clean(b.image_url, 100) : httpUrl(b.image_url),
     shop_url: httpUrl(b.shop_url),
     price,
     quantity_wanted: q,
@@ -522,6 +564,11 @@ function giftFields(b) {
 async function saveGift(request, env, l, giftId) {
   const f = giftFields(await readJson(request));
   if (f.error) return fail(400, f.error);
+  const mine = f.image_url && f.image_url.match(IMG_PATH);
+  if (mine) {
+    const ok = await env.DB.prepare('SELECT id FROM gift_images WHERE id = ?1 AND list_id = ?2').bind(mine[1], l.id).first();
+    if (!ok) return fail(400, 'Photo introuvable : renvoyez-la.');
+  }
   // Le champ « Pour qui » n'a de sens que pour Noël.
   const recipient = l.event_type === 'christmas' ? f.recipient : null;
   if (!giftId) {
@@ -543,6 +590,7 @@ async function saveGift(request, env, l, giftId) {
     .first();
   if (booked && booked.n > f.quantity_wanted)
     return fail(409, 'Des exemplaires sont déjà réservés : la quantité ne peut pas passer en dessous.');
+  const old = await env.DB.prepare('SELECT image_url FROM gifts WHERE id = ?1 AND list_id = ?2').bind(giftId, l.id).first();
   const r = await env.DB.prepare(
     `UPDATE gifts SET name = ?1, description = ?2, image_url = ?3, shop_url = ?4, price = ?5, quantity_wanted = ?6, recipient = ?9
      WHERE id = ?7 AND list_id = ?8`
@@ -550,6 +598,7 @@ async function saveGift(request, env, l, giftId) {
     .bind(f.name, f.description, f.image_url, f.shop_url, f.price, f.quantity_wanted, giftId, l.id, recipient)
     .run();
   if (r.meta.changes !== 1) return fail(404, 'Cadeau introuvable.');
+  if (old?.image_url && old.image_url !== f.image_url) await dropImages(env, old.image_url)?.run();
   await touchList(env, l.id);
   return json({ ok: true });
 }
@@ -557,10 +606,12 @@ async function saveGift(request, env, l, giftId) {
 async function deleteGift(env, l, giftId) {
   const own = await env.DB.prepare('SELECT id FROM gifts WHERE id = ?1 AND list_id = ?2').bind(giftId, l.id).first();
   if (!own) return fail(404, 'Cadeau introuvable.');
+  const g = await env.DB.prepare('SELECT image_url FROM gifts WHERE id = ?1').bind(giftId).first();
   await env.DB.batch([
     env.DB.prepare('DELETE FROM reservations WHERE gift_id = ?1').bind(giftId),
     env.DB.prepare('DELETE FROM gifts WHERE id = ?1').bind(giftId),
-  ]);
+    dropImages(env, g?.image_url),
+  ].filter(Boolean));
   return json({ ok: true });
 }
 
@@ -582,6 +633,7 @@ async function deleteList(env, l) {
   await env.DB.batch([
     env.DB.prepare('DELETE FROM reservations WHERE gift_id IN (SELECT id FROM gifts WHERE list_id = ?1)').bind(l.id),
     env.DB.prepare('DELETE FROM gifts WHERE list_id = ?1').bind(l.id),
+    env.DB.prepare('DELETE FROM gift_images WHERE list_id = ?1').bind(l.id),
     env.DB.prepare('DELETE FROM lists WHERE id = ?1').bind(l.id),
   ]);
   return json({ ok: true });

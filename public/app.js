@@ -83,6 +83,23 @@ function openByLink(value) {
   return true;
 }
 
+async function shrinkPhoto(file) {
+  const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  const scale = Math.min(1, 900 / Math.max(bmp.width, bmp.height));
+  const c = document.createElement('canvas');
+  c.width = Math.round(bmp.width * scale);
+  c.height = Math.round(bmp.height * scale);
+  const g = c.getContext('2d');
+  g.fillStyle = '#fff';
+  g.fillRect(0, 0, c.width, c.height);
+  g.drawImage(bmp, 0, 0, c.width, c.height);
+  for (const q of [0.82, 0.7, 0.55, 0.4]) {
+    const blob = await new Promise((ok) => c.toBlob(ok, 'image/jpeg', q));
+    if (blob && blob.size <= 290000) return blob;
+  }
+  throw new Error('Photo trop lourde : choisissez-en une plus petite.');
+}
+
 function formDialog({ title, fields, submit, onSubmit }) {
   const dlg = h('dialog');
   const err = h('p', { class: 'err', role: 'alert' });
@@ -125,6 +142,26 @@ function formDialog({ title, fields, submit, onSubmit }) {
     };
     input.addEventListener('change', run);
     input.addEventListener('paste', () => setTimeout(run, 0));
+  }
+  const pf = fields.find((f) => f.photo);
+  if (pf) {
+    const input = form.elements[pf.name];
+    const note = h('small', { class: 'autonote' });
+    const file = h('input', { type: 'file', accept: 'image/*', 'aria-label': 'Ajouter ma propre photo' });
+    file.addEventListener('change', async () => {
+      const f = file.files?.[0];
+      if (!f) return;
+      note.textContent = 'Envoi de la photo…';
+      try {
+        const blob = await shrinkPhoto(f);
+        const r = await fetch('/api/admin/images', { method: 'POST', headers: { 'x-admin-token': pf.photo, 'content-type': 'image/jpeg' }, body: blob });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.error || 'Envoi impossible.');
+        input.value = data.url;
+        note.textContent = 'Photo ajoutée.';
+      } catch (x) { note.textContent = x.message || 'Cette photo n’a pas pu être utilisée.'; }
+    });
+    input.closest('label').after(h('label', { class: 'fld' }, h('span', null, 'Ou ajoutez votre propre photo'), file, note));
   }
   dlg.append(form);
   dlg.addEventListener('close', () => dlg.remove());
@@ -508,7 +545,7 @@ function giftForm(token, g) {
       { name: 'name', label: 'Nom du cadeau', required: true, len: 120, value: g?.name },
       ...(state.eventType === 'christmas' ? [{ name: 'recipient', label: 'Pour qui ? Prénom (facultatif)', len: 40, value: g?.recipient, hint: 'Laissez vide si le cadeau est pour tout le monde.' }] : []),
       { name: 'description', label: 'Description (facultatif)', type: 'textarea', len: 500, value: g?.description },
-      { name: 'image_url', label: 'Adresse d’une image (facultatif)', type: 'url', len: 2000, value: g?.image_url, hint: 'Rempli automatiquement si possible. Sinon : clic droit sur l’image du produit, puis « Copier l’adresse de l’image ».' },
+      { name: 'image_url', label: 'Adresse d’une image (facultatif)', len: 2000, value: g?.image_url, photo: token, hint: 'Rempli automatiquement si possible. Sinon : clic droit sur l’image du produit, puis « Copier l’adresse de l’image », ou ajoutez votre photo ci-dessous.' },
       { name: 'price', label: 'Prix indicatif en euros (facultatif)', type: 'number', min: 0, step: '0.01', value: g?.price },
       { name: 'quantity_wanted', label: 'Nombre d’exemplaires souhaités', type: 'number', min: 1, maxnum: 99, required: true, value: g?.quantity_wanted ?? 1 },
     ],
