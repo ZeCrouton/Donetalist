@@ -118,6 +118,7 @@ async function route(request, env, u) {
     if (p === '/api/admin' && m === 'GET') return adminView(env, list, reveal);
     if (p === '/api/admin' && m === 'PATCH') return patchList(request, env, list);
     if (p === '/api/admin' && m === 'DELETE') return deleteList(env, list);
+    if (p === '/api/admin/preview' && m === 'GET') return preview(request, env, u);
     if (p === '/api/admin/gifts' && m === 'POST') return saveGift(request, env, list, null);
     if ((x = p.match(/^\/api\/admin\/gifts\/([\w-]+)$/))) {
       if (m === 'PUT') return saveGift(request, env, list, x[1]);
@@ -127,6 +128,113 @@ async function route(request, env, u) {
       return adminCancel(env, list, x[1], reveal);
   }
   return fail(404, 'Introuvable.');
+}
+
+// ---------- Aperçu d'un lien marchand (image, titre, prix) : gratuit, sans API tierce ----------
+const decodeHtml = (t) =>
+  t.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;|&#x27;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+const metaContent = (html, keys) => {
+  for (const tag of html.match(/<meta\b[^>]*>/gi) || []) {
+    const k = (tag.match(/(?:property|name|itemprop)\s*=\s*["']([^"']+)["']/i) || [])[1];
+    if (k && keys.includes(k.toLowerCase())) {
+      const c = (tag.match(/content\s*=\s*(?:"([^"]*)"|'([^']*)')/i) || [])[1] ?? (tag.match(/content\s*=\s*'([^']*)'/i) || [])[1];
+      if (c) return decodeHtml(c.trim());
+    }
+  }
+  return null;
+};
+const toPrice = (v) => {
+  if (v === null || v === undefined) return null;
+  let t = String(v).replace(/[^\d.,]/g, '');
+  if (!t) return null;
+  if (t.includes(',') && t.includes('.')) t = t.lastIndexOf(',') > t.lastIndexOf('.') ? t.replace(/\./g, '').replace(',', '.') : t.replace(/,/g, '');
+  else t = t.replace(',', '.');
+  const n = Number(t);
+  return Number.isFinite(n) && n > 0 && n < 1e6 ? Math.round(n * 100) / 100 : null;
+};
+function fromJsonLd(html) {
+  const out = {};
+  for (const m of html.matchAll(/<script[^>]*application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi)) {
+    let data;
+    try { data = JSON.parse(m[1]); } catch { continue; }
+    const stack = [data];
+    while (stack.length) {
+      const n = stack.pop();
+      if (Array.isArray(n)) { stack.push(...n); continue; }
+      if (!n || typeof n !== 'object') continue;
+      const type = [].concat(n['@type'] || []).join(',');
+      if (/Product/i.test(type)) {
+        out.title ||= typeof n.name === 'string' ? n.name : null;
+        const img = [].concat(n.image || [])[0];
+        out.image ||= typeof img === 'string' ? img : img?.url || null;
+        for (const o of [].concat(n.offers || [])) {
+          const pr = o?.price ?? o?.lowPrice ?? o?.priceSpecification?.price;
+          out.price ||= toPrice(pr);
+        }
+      }
+      for (const v of Object.values(n)) if (v && typeof v === 'object') stack.push(v);
+    }
+  }
+  return out;
+}
+async function preview(request, env, u) {
+  if (await limited(request, env, 'preview', 40, 600)) return tooMany();
+  const target = httpUrl(u.searchParams.get('url'));
+  if (!target) return fail(400, 'Lien invalide.');
+  const host = new URL(target).hostname.toLowerCase();
+  if (host === 'localhost' || !host.includes('.') || /^[\d.]+$/.test(host) || host.includes(':') || host.endsWith('.local') || host.endsWith('.internal'))
+    return fail(400, 'Lien non pris en charge.');
+  let html = '';
+  let finalUrl = target;
+  try {
+    const r = await fetch(target, {
+      redirect: 'follow',
+      signal: AbortSignal.timeout(8000),
+      headers: {
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
+        accept: 'text/html,application/xhtml+xml',
+        'accept-language': 'fr-FR,fr;q=0.9,en;q=0.6',
+      },
+    });
+    finalUrl = r.url || target;
+    const ct = r.headers.get('content-type') || '';
+    if (!/html/i.test(ct)) return json({ found: false, reason: 'Ce lien ne mène pas à une page produit.' });
+    // Lecture limitée (600 Ko) pour rester léger.
+    const reader = r.body.getReader();
+    const dec = new TextDecoder();
+    let size = 0;
+    while (size < 600000) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.length;
+      html += dec.decode(value, { stream: true });
+    }
+    reader.cancel().catch(() => {});
+  } catch {
+    return json({ found: false, reason: 'Le site n’a pas répondu.' });
+  }
+  const ld = fromJsonLd(html);
+  let image =
+    metaContent(html, ['og:image', 'og:image:secure_url', 'twitter:image', 'twitter:image:src']) || ld.image ||
+    (html.match(/data-old-hires\s*=\s*"(https?:[^"]+)"/i) || [])[1] ||
+    (html.match(/"hiRes"\s*:\s*"(https?:[^"]+)"/i) || [])[1] || null;
+  let title =
+    metaContent(html, ['og:title', 'twitter:title']) || ld.title ||
+    (html.match(/<span[^>]*id="productTitle"[^>]*>\s*([^<]+?)\s*<\/span>/i) || [])[1] ||
+    (html.match(/<title[^>]*>([^<]+)<\/title>/i) || [])[1] || null;
+  let price =
+    toPrice(metaContent(html, ['product:price:amount', 'og:price:amount', 'price'])) || ld.price ||
+    toPrice((html.match(/class="a-offscreen"[^>]*>\s*([^<]+?)\s*</i) || [])[1]);
+  try { if (image) image = new URL(decodeHtml(image), finalUrl).href; } catch { image = null; }
+  image = httpUrl(image);
+  title = title ? decodeHtml(title).replace(/\s+/g, ' ').trim().slice(0, 120) : null;
+  if (title && /^(amazon\.[a-z.]+\s*:|robot check|captcha)/i.test(title)) title = null;
+  const found = !!(image || title || price);
+  return json({
+    found, image, title, price,
+    reason: found ? null : 'Ce site ne permet pas la lecture automatique. Remplissez les champs à la main.',
+  });
 }
 
 // ---------- Listes ----------

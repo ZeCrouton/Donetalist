@@ -109,6 +109,23 @@ function formDialog({ title, fields, submit, onSubmit }) {
     try { await onSubmit(Object.fromEntries(new FormData(form))); dlg.close(); }
     catch (x) { err.textContent = x.message; btn.disabled = false; }
   });
+  const af = fields.find((f) => f.autofill);
+  if (af) {
+    const input = form.elements[af.name];
+    const note = h('small', { class: 'autonote' });
+    input.after(note);
+    let last = '';
+    const run = async () => {
+      const url = input.value.trim();
+      if (!url || url === last) return;
+      last = url;
+      note.textContent = 'Lecture du lien…';
+      try { note.textContent = (await af.autofill(url, form)) || ''; }
+      catch (x) { note.textContent = x.message; }
+    };
+    input.addEventListener('change', run);
+    input.addEventListener('paste', () => setTimeout(run, 0));
+  }
   dlg.append(form);
   dlg.addEventListener('close', () => dlg.remove());
   document.body.append(dlg);
@@ -479,11 +496,19 @@ function giftForm(token, g) {
     title: g ? 'Modifier le cadeau' : 'Ajouter un cadeau',
     submit: g ? 'Enregistrer' : 'Ajouter à la liste',
     fields: [
+      { name: 'shop_url', label: 'Lien vers le site marchand (facultatif)', type: 'url', len: 2000, value: g?.shop_url,
+        hint: 'Collez le lien du produit : le nom, l’image et le prix sont remplis automatiquement quand le site le permet.',
+        autofill: async (url, form) => {
+          const r = await api('/admin/preview?url=' + encodeURIComponent(url), { admin: token });
+          if (!r.found) return r.reason || 'Rien trouvé : remplissez les champs à la main.';
+          const set = (n, v) => { const el = form.elements[n]; if (el && v && !el.value.trim()) el.value = v; };
+          set('name', r.title); set('image_url', r.image); set('price', r.price);
+          return 'Champs remplis. Vérifiez-les avant d’enregistrer.';
+        } },
       { name: 'name', label: 'Nom du cadeau', required: true, len: 120, value: g?.name },
       ...(state.eventType === 'christmas' ? [{ name: 'recipient', label: 'Pour qui ? Prénom (facultatif)', len: 40, value: g?.recipient, hint: 'Laissez vide si le cadeau est pour tout le monde.' }] : []),
       { name: 'description', label: 'Description (facultatif)', type: 'textarea', len: 500, value: g?.description },
-      { name: 'image_url', label: 'Adresse d’une image (facultatif)', type: 'url', len: 2000, value: g?.image_url, hint: 'Faites un clic droit sur l’image du produit, puis « Copier l’adresse de l’image ».' },
-      { name: 'shop_url', label: 'Lien vers le site marchand (facultatif)', type: 'url', len: 2000, value: g?.shop_url },
+      { name: 'image_url', label: 'Adresse d’une image (facultatif)', type: 'url', len: 2000, value: g?.image_url, hint: 'Rempli automatiquement si possible. Sinon : clic droit sur l’image du produit, puis « Copier l’adresse de l’image ».' },
       { name: 'price', label: 'Prix indicatif en euros (facultatif)', type: 'number', min: 0, step: '0.01', value: g?.price },
       { name: 'quantity_wanted', label: 'Nombre d’exemplaires souhaités', type: 'number', min: 1, maxnum: 99, required: true, value: g?.quantity_wanted ?? 1 },
     ],
