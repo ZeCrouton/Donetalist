@@ -63,13 +63,25 @@ async function copy(text) {
   catch { window.prompt('Copiez ce lien :', text); }
 }
 
-// Boutons pour s'envoyer le lien d'administration (messagerie, WhatsApp, SMS, partage du téléphone).
+// Texte type de la note à coller dans l'application Notes du téléphone.
+const adminNote = (title, url) =>
+  `Donetalist : lien d’administration\nListe : « ${title} »\n\nCe lien permet de modifier la liste depuis n’importe quel appareil. Gardez-le précieusement et ne le partagez pas.\n\nLien : ${url}`;
+async function copyNote(title, url) {
+  const text = adminNote(title, url);
+  try { await navigator.clipboard.writeText(text); }
+  catch { window.prompt('Copiez ce texte, puis collez-le dans une note :', text); return; }
+  toast('Texte de la note copié. Ouvrez Notes et collez-le.');
+  if (/iPhone|iPad/.test(navigator.userAgent)) setTimeout(() => { location.href = 'mobilenotes://'; }, 900);
+}
+
+// Boutons pour s'envoyer le lien d'administration (messagerie, WhatsApp, SMS, note, partage du téléphone).
 function sendAdminLink(title, url) {
   const msg = `Mon lien d’administration Donetalist pour « ${title} ». Gardez-le : il permet de modifier la liste depuis n’importe quel appareil.`;
   return h('div', { class: 'row' },
     h('a', { class: 'btn small', href: 'mailto:?subject=' + encodeURIComponent('Mon lien Donetalist : ' + title) + '&body=' + encodeURIComponent(msg + '\n' + url) }, 'M’envoyer par e-mail'),
     h('a', { class: 'btn ghost small', target: '_blank', rel: 'noopener', href: 'https://wa.me/?text=' + encodeURIComponent(msg + ' ' + url) }, 'WhatsApp'),
     h('a', { class: 'btn ghost small', href: 'sms:?&body=' + encodeURIComponent(msg + ' ' + url) }, 'SMS'),
+    h('button', { class: 'btn ghost small', type: 'button', onclick: () => copyNote(title, url) }, 'Dans une note'),
     h('button', { class: 'btn ghost small', type: 'button', onclick: () => copy(url) }, 'Copier'),
     navigator.share ? h('button', { class: 'btn ghost small', type: 'button', onclick: () => navigator.share({ title, text: msg, url }).catch(() => {}) }, 'Autres applications') : null);
 }
