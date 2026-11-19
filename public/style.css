@@ -288,3 +288,7 @@ dialog h2 { font-size: 1.4rem; margin-bottom: 1rem; }
 .imgprev { display: grid; gap: .3rem; justify-items: center; margin: -.2rem 0 .6rem; }
 .imgprev:empty { display: none; }
 .imgprev img { width: 100%; max-width: 220px; aspect-ratio: 4/3; object-fit: cover; border-radius: 10px; background: #ebe4d0; }
+
+.welcome { margin: .8rem 0 0; padding: .6rem .9rem; border-radius: 12px; background: rgba(255,255,255,.14); white-space: pre-line; overflow-wrap: anywhere; }
+.pencil { font-size: .5em; background: none; border: 0; cursor: pointer; padding: .2rem .4rem; border-radius: 8px; vertical-align: middle; }
+.pencil:hover, .pencil:focus-visible { background: rgba(255,255,255,.18); }

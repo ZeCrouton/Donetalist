@@ -57,6 +57,9 @@ if ($t -match 'REMPLACER_PAR_VOTRE_ID') {
 # 4. Schema (CREATE TABLE IF NOT EXISTS : sans danger si deja applique)
 Run "npx wrangler d1 execute donetalist --remote --file=schema.sql" -Strict | Out-Null
 
+# 4b. Colonne du message d'accueil sur une base existante (echoue sans danger si deja presente)
+Run "npx wrangler d1 execute donetalist --remote --file=migrations/003_welcome_message.sql" | Out-Null
+
 # 5. Deploiement
 $res = Run "npx wrangler deploy" -Strict
 if ($res -match 'https://\S+\.workers\.dev') { Write-Host "`nSite en ligne : $($Matches[0])" -ForegroundColor Green }

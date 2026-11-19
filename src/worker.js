@@ -383,6 +383,7 @@ async function publicList(env, share) {
   return json({
     list: {
       title: l.title,
+      welcome_message: l.welcome_message || '',
       event_type: l.event_type || 'christmas',
       event_name: l.event_name || '',
       event_second_name: l.event_second_name || '',
@@ -484,6 +485,7 @@ async function adminView(env, l, reveal) {
   return json({
     list: {
       title: l.title,
+      welcome_message: l.welcome_message || '',
       event_type: l.event_type || 'christmas',
       event_name: l.event_name || '',
       event_second_name: l.event_second_name || '',
@@ -517,6 +519,7 @@ async function patchList(request, env, l) {
     if (!t) return fail(400, 'Le nom de la liste ne peut pas être vide.');
     add('title', t);
   }
+  if ('welcome_message' in b) add('welcome_message', clean(b.welcome_message, 500) || null);
   if ('event_name' in b) add('event_name', clean(b.event_name, 120) || null);
   if ('event_second_name' in b) add('event_second_name', clean(b.event_second_name, 80) || null);
   if ('event_date' in b) {

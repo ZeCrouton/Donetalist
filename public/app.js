@@ -399,6 +399,7 @@ async function visitor(share) {
     h('header', { class: 'band' }, h('div', { class: 'wrap' }, topbar(),
       h('span', { class: 'ev-icon', 'aria-hidden': 'true' }, EVENTS[list.event_type]?.icon || '✨'),
       h('h1', null, list.title),
+      list.welcome_message ? h('p', { class: 'welcome' }, list.welcome_message) : null,
       list.event_date ? h('p', { class: 'event-date' }, '📅 ' + new Date(list.event_date + 'T12:00:00').toLocaleDateString('fr-FR', { dateStyle: 'long' })) : null,
       h('p', null, 'Choisissez un cadeau et cliquez sur « Réserver » : seuls votre prénom et votre nom sont demandés.'),
       progress(done, wanted))),
@@ -503,7 +504,9 @@ async function admin(token) {
   app.replaceChildren(
     h('header', { class: 'band' }, h('div', { class: 'wrap' }, topbar(),
       h('span', { class: 'ev-icon', 'aria-hidden': 'true' }, EVENTS[list.event_type]?.icon || '✨'),
-      h('h1', null, list.title),
+      h('h1', null, list.title, ' ',
+        h('button', { class: 'pencil', type: 'button', title: 'Modifier le nom et le message', 'aria-label': 'Modifier le nom et le message de la liste', onclick: () => renameForm(token, list) }, '✏️')),
+      list.welcome_message ? h('p', { class: 'welcome' }, list.welcome_message) : null,
       list.event_date ? h('p', { class: 'event-date' }, '📅 ' + new Date(list.event_date + 'T12:00:00').toLocaleDateString('fr-FR', { dateStyle: 'long' })) : null,
       h('p', null, list.status === 'closed' ? 'Liste clôturée : plus aucune réservation possible.' : 'Gérez vos cadeaux et partagez le lien avec vos proches.'),
       progress(summary.units_reserved, summary.units_wanted))),
@@ -541,7 +544,7 @@ async function admin(token) {
           h('input', { type: 'date', value: list.deadline || '', onchange: (e) => patch({ deadline: e.target.value }) })),
         h('div', { class: 'row' },
           list.event_type !== 'christmas' ? h('button', { class: 'btn ghost small', onclick: () => eventForm(token, list) }, 'Modifier l’événement') : null,
-          h('button', { class: 'btn ghost small', onclick: () => renameForm(token, list.title) }, 'Renommer la liste'))),
+          h('button', { class: 'btn ghost small', onclick: () => renameForm(token, list) }, 'Nom et message'))),
       h('section', { class: 'card validate' }, h('h2', null, 'Valider la liste'),
         h('p', null, 'Votre liste est prête ? Validez-la pour revenir à l’accueil, où elle apparaît dans « Mes listes ».'),
         h('button', { class: 'btn', onclick: () => { location.hash = '#/'; toast('Liste créée. Retrouvez-la dans « Mes listes ».'); } }, 'Valider la liste')),
@@ -627,12 +630,16 @@ function eventForm(token, list) {
   });
 }
 
-function renameForm(token, title) {
+function renameForm(token, list) {
   formDialog({
-    title: 'Renommer la liste', submit: 'Enregistrer',
-    fields: [{ name: 'title', label: 'Nom de la liste', required: true, len: 120, value: title }],
+    title: 'Nom et message de la liste', submit: 'Enregistrer',
+    fields: [
+      { name: 'title', label: 'Nom de la liste', required: true, len: 120, value: list.title },
+      { name: 'welcome_message', label: 'Petit message en tête de liste (facultatif)', type: 'textarea', len: 500, value: list.welcome_message,
+        hint: 'Visible par tous ceux qui ouvrent la liste. Exemple : « Pas de cadeau trop cher, on se retrouve le 24 ! »' },
+    ],
     onSubmit: async (v) => {
-      await api('/admin', { method: 'PATCH', body: { title: v.title }, admin: token });
+      await api('/admin', { method: 'PATCH', body: { title: v.title, welcome_message: v.welcome_message || '' }, admin: token });
       const all = store.get('noel.lists', []).map((l) => (l.admin === token ? { ...l, title: v.title.trim() } : l));
       store.set('noel.lists', all);
       route();
