@@ -85,17 +85,20 @@ function openByLink(value) {
 
 async function shrinkPhoto(file) {
   const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
-  const scale = Math.min(1, 900 / Math.max(bmp.width, bmp.height));
-  const c = document.createElement('canvas');
-  c.width = Math.round(bmp.width * scale);
-  c.height = Math.round(bmp.height * scale);
-  const g = c.getContext('2d');
-  g.fillStyle = '#fff';
-  g.fillRect(0, 0, c.width, c.height);
-  g.drawImage(bmp, 0, 0, c.width, c.height);
-  for (const q of [0.82, 0.7, 0.55, 0.4]) {
-    const blob = await new Promise((ok) => c.toBlob(ok, 'image/jpeg', q));
-    if (blob && blob.size <= 290000) return blob;
+  // Les vignettes s'affichent en petit : 640 px suffisent. On vise ~60 Ko pour économiser l'espace serveur.
+  for (const max of [640, 480, 360]) {
+    const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * scale);
+    c.height = Math.round(bmp.height * scale);
+    const g = c.getContext('2d');
+    g.fillStyle = '#fff';
+    g.fillRect(0, 0, c.width, c.height);
+    g.drawImage(bmp, 0, 0, c.width, c.height);
+    for (const q of [0.76, 0.66, 0.56, 0.46]) {
+      const blob = await new Promise((ok) => c.toBlob(ok, 'image/jpeg', q));
+      if (blob && blob.size <= 70000) return blob;
+    }
   }
   throw new Error('Photo trop lourde : choisissez-en une plus petite.');
 }

@@ -244,12 +244,12 @@ async function preview(request, env, u) {
   });
 }
 
-// ---------- Photos ajoutées par l'utilisateur (JPEG ≤ 300 Ko dans D1, gratuit) ----------
+// ---------- Photos ajoutées par l'utilisateur (JPEG ≤ 150 Ko dans D1, gratuit) ----------
 const IMG_PATH = /^\/api\/img\/([\w-]{36})$/;
 async function uploadImage(request, env, l) {
   if (await limited(request, env, 'upload', 40, 3600)) return tooMany();
   const buf = new Uint8Array(await request.arrayBuffer());
-  if (!buf.length || buf.length > 300000) return fail(400, 'Photo trop lourde (300 Ko maximum après réduction).');
+  if (!buf.length || buf.length > 150000) return fail(400, 'Photo trop lourde (150 Ko maximum après réduction).');
   if (!(buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff)) return fail(400, 'Format de photo non pris en charge.');
   const n = await env.DB.prepare('SELECT COUNT(*) AS n FROM gift_images WHERE list_id = ?1').bind(l.id).first();
   if (n.n >= 80) return fail(400, 'Limite de photos atteinte pour cette liste.');
