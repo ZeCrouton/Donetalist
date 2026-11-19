@@ -135,14 +135,19 @@ function formDialog({ title, fields, submit, onSubmit }) {
     const note = h('small', { class: 'autonote' });
     input.after(note);
     let last = '';
+    let seq = 0;
     const run = async () => {
       const url = input.value.trim();
-      if (!url || url === last) return;
+      if (url === last) return;
       last = url;
-      note.textContent = 'Lecture du lien…';
-      try { note.textContent = (await af.autofill(url, form)) || ''; }
-      catch (x) { note.textContent = x.message; }
+      const id = ++seq;
+      note.textContent = url ? 'Lecture du lien…' : '';
+      try {
+        const msg = await af.autofill(url, form);
+        if (id === seq) note.textContent = msg || '';
+      } catch (x) { if (id === seq) note.textContent = x.message; }
     };
+    input.addEventListener('input', () => { if (!input.value.trim()) run(); });
     input.addEventListener('change', run);
     input.addEventListener('paste', () => setTimeout(run, 0));
   }
@@ -547,6 +552,7 @@ async function admin(token) {
 }
 
 function giftForm(token, g) {
+  const auto = {}; // champs remplis automatiquement depuis le lien marchand
   formDialog({
     title: g ? 'Modifier le cadeau' : 'Ajouter un cadeau',
     submit: g ? 'Enregistrer' : 'Ajouter à la liste',
@@ -554,9 +560,19 @@ function giftForm(token, g) {
       { name: 'shop_url', label: 'Lien vers le site marchand (facultatif)', type: 'url', len: 2000, value: g?.shop_url,
         hint: 'Collez le lien du produit : le nom, l’image et le prix sont remplis automatiquement quand le site le permet.',
         autofill: async (url, form) => {
+          // On n'efface que ce que l'automatisme a rempli et que l'utilisateur n'a pas modifié.
+          for (const n of Object.keys(auto)) {
+            const el = form.elements[n];
+            if (el && el.value === auto[n]) { el.value = ''; el.dispatchEvent(new Event('input')); }
+            delete auto[n];
+          }
+          if (!url) return '';
           const r = await api('/admin/preview?url=' + encodeURIComponent(url), { admin: token });
           if (!r.found) return r.reason || 'Rien trouvé : remplissez les champs à la main.';
-          const set = (n, v) => { const el = form.elements[n]; if (el && v && !el.value.trim()) { el.value = v; el.dispatchEvent(new Event('input')); } };
+          const set = (n, v) => {
+            const el = form.elements[n];
+            if (el && v && !el.value.trim()) { el.value = String(v); el.dispatchEvent(new Event('input')); auto[n] = el.value; }
+          };
           set('name', r.title); set('image_url', r.image); set('price', r.price);
           return 'Champs remplis. Vérifiez-les avant d’enregistrer.';
         } },
