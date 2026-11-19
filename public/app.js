@@ -161,10 +161,25 @@ function formDialog({ title, fields, submit, onSubmit }) {
         const data = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(data.error || 'Envoi impossible.');
         input.value = data.url;
+        refresh();
         note.textContent = 'Photo ajoutée.';
       } catch (x) { note.textContent = x.message || 'Cette photo n’a pas pu être utilisée.'; }
     });
-    input.closest('label').after(h('label', { class: 'fld' }, h('span', null, 'Ou ajoutez votre propre photo'), file, note));
+    // Aperçu de l'image retenue (lien du site marchand ou photo perso), mis à jour en direct.
+    const prev = h('div', { class: 'imgprev' });
+    const refresh = () => {
+      const url = input.value.trim();
+      prev.replaceChildren();
+      if (!url) return;
+      prev.append(
+        h('img', { src: url, alt: 'Aperçu de l’image du cadeau', referrerpolicy: 'no-referrer',
+          onerror: () => prev.replaceChildren(h('small', null, 'Cette image ne peut pas s’afficher. Ajoutez votre propre photo ci-dessous.')) }),
+        h('small', null, 'Aperçu tel qu’il apparaîtra. Il ne vous plaît pas ? Ajoutez votre propre photo ci-dessous.'));
+    };
+    input.addEventListener('input', refresh);
+    input.addEventListener('change', refresh);
+    refresh();
+    input.closest('label').after(prev, h('label', { class: 'fld' }, h('span', null, 'Ou ajoutez votre propre photo'), file, note));
   }
   dlg.append(form);
   dlg.addEventListener('close', () => dlg.remove());
@@ -541,7 +556,7 @@ function giftForm(token, g) {
         autofill: async (url, form) => {
           const r = await api('/admin/preview?url=' + encodeURIComponent(url), { admin: token });
           if (!r.found) return r.reason || 'Rien trouvé : remplissez les champs à la main.';
-          const set = (n, v) => { const el = form.elements[n]; if (el && v && !el.value.trim()) el.value = v; };
+          const set = (n, v) => { const el = form.elements[n]; if (el && v && !el.value.trim()) { el.value = v; el.dispatchEvent(new Event('input')); } };
           set('name', r.title); set('image_url', r.image); set('price', r.price);
           return 'Champs remplis. Vérifiez-les avant d’enregistrer.';
         } },

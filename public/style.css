@@ -284,3 +284,7 @@ dialog h2 { font-size: 1.4rem; margin-bottom: 1rem; }
 }
 :root[data-theme="custom"] .band { background: linear-gradient(135deg, #514b44, #82766a); }
 :root[data-theme="custom"] .tag::before { background: var(--papier); }
+
+.imgprev { display: grid; gap: .3rem; justify-items: center; margin: -.2rem 0 .6rem; }
+.imgprev:empty { display: none; }
+.imgprev img { width: 100%; max-width: 220px; aspect-ratio: 4/3; object-fit: cover; border-radius: 10px; background: #ebe4d0; }
